@@ -1,0 +1,164 @@
+---
+title: "P8105 Homework 2"
+author: "Sarah Munro"
+date: "10/7/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r eval=FALSE}
+library (tidyverse)
+install.packages("tidyr")
+library (readxl)
+```
+
+#Problem 1
+
+_Read and clean the Mr Trash Wheel sheet_
+```{r}
+mr_trash_wheel = 
+  read_excel("./Data/mr_trash.xlsx", sheet = 1) %>%
+  janitor::clean_names() %>%
+  drop_na(dumpster) %>%
+  select (-15, -16, -17) %>%
+  mutate(
+    sports_balls = as.integer(sports_balls)
+    )
+mr_trash_wheel
+```
+_Read and clean precipitation data for 2017_
+```{r}
+precip17 = read_excel("./Data/Mr_Trash_Wheel.xlsx", sheet = 6, skip = 1) %>%
+  janitor::clean_names() %>%
+  drop_na() %>%
+  mutate(year = 2017)
+precip17
+```
+_Read and clean precipitation data for 2018_
+```{r}
+precip18 = read_excel("./Data/Mr_Trash_Wheel.xlsx", sheet = 5, skip = 1) %>%
+  janitor::clean_names() %>%
+  drop_na() %>%
+  mutate(year = 2018)
+precip18
+```
+_Merge datasets_
+```{r}
+precip =
+  full_join(precip17, precip18) %>%
+  mutate(month = as.character(month))
+precip
+```
+_Write a paragraph about the datasets with inline r code_
+The dataset `mr_trash_wheel` has `r nrow(mr_trash_wheel)` observations and the merged precipitation dataset `precip` has `r nrow(precip)` observations. Key variables include `dumpster`and `total` precipitation. The median of `sports_balls` is `r median(pull(filter(mr_trash_wheel, year == 2017)sports_balls))`. The total precipitation in 2018 was `r sum(pull(precip18, total))`. 
+
+#Problem 2
+
+_Clean the data in pols-month_
+```{r}
+politics =
+  read_csv(file = "./Data/pols-month.csv") %>%
+  janitor::clean_names() %>%
+  separate(mon, into = c("year", "month", "day")) %>%
+mutate(
+  year = as.numeric(year),
+  month = as.numeric(month),
+  month = month.abb[month],
+  day = as.numeric(day)
+) %>%
+mutate(
+  president = if_else(prez_gop == 1, "gop", "dem")
+) %>%
+ select(-day, -prez_gop, -prez_dem)
+politics
+```
+
+_Clean the data in snp.csv_
+```{r}
+snp =
+  read_csv(file = "./Data/snp.csv") %>%
+  janitor::clean_names() %>%
+  separate(date, into = c("month", "day", "year")) %>%
+  arrange(year, month) %>%
+mutate(
+  year = as.numeric(year),
+  month = as.numeric(month),
+  month = month.abb[month]
+) %>%
+  select(year, month, -day, close) 
+snp
+```
+_Clean the data in unemployment.csv_
+```{r}
+unemployment =
+  read_csv(file ="./Data/unemployment.csv") %>%
+  janitor::clean_names() %>%
+  pivot_longer(
+    jan:dec,
+    names_to = "month",
+    values_to = "rate" 
+  ) 
+unemployment
+```
+_Join the datasets_
+```{r}
+politics_snp = 
+left_join(politics, snp, by = c("year", "month"))
+final = 
+left_join(politics_snp, unemployment, by = c("year", "month"))
+final
+```
+
+The dataset `snp` has `r nrow(snp)` observations. The dataset `politics` has `r nrow(politics)` observations. The dataset `unemployment` has `r nrow(unemployment)` observations. The joined dataset `final` has `r nrow(final)` observations. This data combines some key variables from the other dataset such as `president`, `close`, and `rate`. It covers the range of years `r range(pull(final, year))`. 
+
+#Problem 3 
+
+library(dplyr)
+library(stringr)
+
+_Tidy the baby names dataset_
+```{r}
+baby_names =
+  read_csv("./Data/baby_names.csv") %>%
+  janitor::clean_names() %>%
+  distinct() %>%
+  mutate(
+    childs_first_name = str_to_upper(childs_first_name) 
+  ) %>%
+  mutate(
+    ethnicity = recode(ethnicity, "BLACK NON HISP" = "BLACK NON HISPANIC", "WHITE NON HISP" = "WHITE NON HISPANIC", "ASIAN AND PACI" = "ASIAN AND PACIFIC ISLANDER")
+  )
+baby_names
+```
+_Produce a table of the rank of the name Olivia over time_
+```{r}
+baby_names %>%
+  filter (childs_first_name == "OLIVIA") %>%
+  select (-count) %>%
+  pivot_wider(names_from = year_of_birth,
+              values_from = rank) %>%
+knitr::kable()
+```
+_Produce a table of the top ranking male names over time_
+```{r}
+baby_names %>%
+  filter (gender == "MALE", rank ==1) %>%
+  select (-count) %>%
+  pivot_wider(names_from = year_of_birth,
+              values_from = rank) %>%
+knitr::kable()
+```
+_Produce a scatterplot of rank of white non hispanic male names in 2016 vs the count of those names_
+```{r}
+scatterplot = 
+  filter (baby_names, gender =="MALE", ethnicity =="WHITE NON HISPANIC", year_of_birth ==2016) 
+  ggplot(scatterplot, aes(x = rank, y = count)) + geom_point()
+
+```
+
+
+
+  
